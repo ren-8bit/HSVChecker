@@ -12,9 +12,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-""""""
-" 初期化関連処理
-""""""
+##################################################
+#                初期処理関連                 
+##################################################
 is_running_process = True
 is_output_suspend = False
 
