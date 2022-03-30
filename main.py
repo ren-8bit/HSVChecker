@@ -48,6 +48,7 @@ output_file_name = ""
 prefix_figure_title_name = ""
 equal_width = DEFAULT_EQUAL_WIDTH_BINS 
 is_dny_output = False
+use_interactive_mode = False
 verbosity = 0
 
 NOMAL_MODE = 0
@@ -115,6 +116,7 @@ def DefineSystemArgumentsProcess():
   global prefix_figure_title_name
   global equal_width
   global is_dny_output
+  global use_interactive_mode
   global verbosity
   
   parser = argparse.ArgumentParser(description="Create a separated HSV parameter image and making these figures.")
@@ -125,6 +127,7 @@ def DefineSystemArgumentsProcess():
   optional.add_argument("-e", "--equal-width", type=int, default=DEFAULT_EQUAL_WIDTH_BINS, help="Set histogram figures's equal-width bins. The default value is 255.")
   optional.add_argument("-o", "--output-file", "--output-file-prefix", type=str, default="", help="The prefix result file name.")
   optional.add_argument("-d", "--is-dny-output", action='store_const', default=False, const=True, help="Deny output to the HSV files.")
+  optional.add_argument("-i", "--use-interactive-mode", action='store_const', default=False, const=True, help="Use interactive mode.")
   required.add_argument("-f", "--file", type=str, help="The analyzer target file name.", required=True)
   args = parser.parse_args()
   
@@ -134,6 +137,7 @@ def DefineSystemArgumentsProcess():
     prefix_figure_title_name = '[ ' + args.output_file + ' ]: '
   equal_width = args.equal_width
   is_dny_output = args.is_dny_output
+  use_interactive_mode = args.use_interactive_mode
   verbosity = args.verbosity 
   
   if verbosity == VERY_NOISY_MODE:
@@ -172,6 +176,7 @@ def AnalyzeImage():
   global is_running_process     # TODO: remove
   global input_file_name
   global prefix_figure_title_name
+  global use_interactive_mode
   
   hue_figure_title_name_with_prefix = prefix_figure_title_name + HUE_FIGURE_TITLE_NAME
   saturation_figure_title_name_with_prefix = prefix_figure_title_name + SATURATION_FIGURE_TITLE_NAME
@@ -229,7 +234,9 @@ def AnalyzeImage():
       figure_brightness.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Brightness.png')
       
       sync_queue.put(MAIN_PROCESS_WAS_FINISHED)
-      plt.show()
+      
+      if use_interactive_mode == True:
+        plt.show()
       
   except Exception as e:
     wait_controller.terminate()
