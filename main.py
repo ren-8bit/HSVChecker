@@ -3,7 +3,6 @@
 import sys
 import argparse
 import itertools
-import threading
 import multiprocessing
 import asyncio
 import time
@@ -33,6 +32,7 @@ COLORS = {
   "white": "w"
 }
 DEFAULT_EQUAL_WIDTH_BINS = 255
+WHITE_PADDING = "                                                "
 
 WINDOW_TITLE_PREFIX = "Figure of "
 WINDOW_TITLE_SUFFIX = " - Normalized"
@@ -52,6 +52,12 @@ NOMAL_MODE = 0
 NOISY_MODE = 1
 VERY_NOISY_MODE = 2
 
+MAIN_PROCESS_IS_IN_PROGRESS = "InProgress"
+MAIN_PROCESS_WAS_FINISHED = "Finish"
+MAIN_PROCESS_REQUESTS_SLEEP_CALL = "Wait" 
+
+sync_queue = multiprocessing.Queue()
+
 ##################################################
 #              デバッグ情報表示用                 
 ##################################################
@@ -65,19 +71,22 @@ def PrintDebugInfomation(input_image, hsv_image, hue_image, saturation_image, br
 ##################################################
 #         実行中のアニメーション表示用                 
 ##################################################
-def WaitngAnimate():
-  global is_running_process
-  global is_output_suspend
-  
+def WaitngAnimate(sync_queue):
   animation_dot = ['       ', '.      ', '..     ', '...    ', '....   ', '...... ']
   dot_idx = 0
   dot_len = len(animation_dot) - 1
+  main_process_state = MAIN_PROCESS_IS_IN_PROGRESS
   
   try:
     for animation_cycle in itertools.cycle(['|', '/', '-', '\\']):
-      if is_running_process == False:
-        break
-      elif is_output_suspend == True:
+      if sync_queue.qsize() > 0:
+        if sync_queue.get() == MAIN_PROCESS_WAS_FINISHED:
+          break
+        elif sync_queue.get() == MAIN_PROCESS_REQUESTS_SLEEP_CALL:
+          main_process_state = MAIN_PROCESS_REQUESTS_SLEEP_CALL
+        elif sync_queue.get() == MAIN_PROCESS_IS_IN_PROGRESS:
+          main_process_state = MAIN_PROCESS_IS_IN_PROGRESS
+      if main_process_state == MAIN_PROCESS_REQUESTS_SLEEP_CALL:
         time.sleep(0.1)
         continue
       sys.stdout.write('\r['+ animation_cycle + ']: Image analyzer is now in progress' + animation_dot[dot_idx])
@@ -86,7 +95,7 @@ def WaitngAnimate():
       else:
         dot_idx += 1
       time.sleep(0.1)
-    sys.stdout.write('\rDone!                                                 ')
+    sys.stdout.write('\r[*]: Done!                                                 \n')
   except Exception as e:
     print("Unexpected error: " + str(e))
     sys.exit(ERROR_EXIT)
@@ -139,11 +148,11 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
   
   figure_base_data=list(hsv_base_image.getdata())
   if verbosity == VERY_NOISY_MODE:
-    is_output_suspend = True
+    sync_queue.put(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
     time.sleep(0.5)
-    print("\r>", output_suffix_name, "                                                ")
-    print("   MAX:", max(figure_base_data), " , min: ", min(figure_base_data))
-    is_output_suspend = False
+    print("\r>", output_suffix_name, WHITE_PADDING)
+    print("\r   MAX:", max(figure_base_data), " , min: ", min(figure_base_data), WHITE_PADDING)
+    sync_queue.put(MAIN_PROCESS_IS_IN_PROGRESS)
   figure.hist(figure_base_data, bins=equal_width_bins, density=True, color=plot_color)
   figure.set_title(figure_title)
   figure.set_xlabel(xlabel)
@@ -162,7 +171,7 @@ def AnalyzeImage():
   global input_file_name
   
   try:
-    wait_controller = threading.Thread(target=WaitngAnimate)
+    wait_controller = multiprocessing.Process(target=WaitngAnimate, args=(sync_queue,))
     wait_controller.start()
     
     with open(input_file_name, "rb") as pointer_of_input_image:
@@ -208,7 +217,7 @@ def AnalyzeImage():
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Brightness.png')
       
-      is_running_process=False
+      sync_queue.put(MAIN_PROCESS_WAS_FINISHED)
       plt.show()
       
   except Exception as e:
