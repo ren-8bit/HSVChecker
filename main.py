@@ -95,7 +95,7 @@ def WaitngAnimate(sync_queue):
       else:
         dot_idx += 1
       time.sleep(0.1)
-    sys.stdout.write('\r[*]: Done!                                                 \n')
+    sys.stdout.write('\r[+]: Done🎉                                                 \n')
   except Exception as e:
     print("Unexpected error: " + str(e))
     sys.exit(ERROR_EXIT)
