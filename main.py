@@ -14,9 +14,6 @@ from PIL import Image
 ##################################################
 #                初期処理関連                 
 ##################################################
-is_running_process = True         # TODO: remove
-is_output_suspend = False         # TODO: remove
-
 NORMAL_EXIT = 0
 ERROR_EXIT = 1
 
@@ -149,7 +146,6 @@ def DefineSystemArgumentsProcess():
 def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str, 
                    figure_title: str, xlabel: str, ylabel: str, equal_width_bins: int,
                    output_prefix_name: str, output_suffix_name: str):
-  global is_output_suspend      # TODO: remove
   global is_dny_output
   
   figure_base_data=list(hsv_base_image.getdata())
@@ -173,7 +169,6 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
 #                   主処理                 
 ##################################################
 def AnalyzeImage():
-  global is_running_process     # TODO: remove
   global input_file_name
   global prefix_figure_title_name
   global use_interactive_mode

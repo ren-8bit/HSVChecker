@@ -62,7 +62,6 @@ SetupPyenv
 # 構築調査
 which pyenv
 
-export PIPENV_VENV_IN_PROJECT=true
 yes Y | pipenv --python ${INSTALL_PYTHON_VERSION}
 
 curl -kL https://bootstrap.pypa.io/get-pip.py | python
