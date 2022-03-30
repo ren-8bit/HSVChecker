@@ -14,13 +14,14 @@ from PIL import Image
 ##################################################
 #                初期処理関連                 
 ##################################################
-is_running_process = True
-is_output_suspend = False
+is_running_process = True         # TODO: remove
+is_output_suspend = False         # TODO: remove
 
 NORMAL_EXIT = 0
 ERROR_EXIT = 1
 
-OUTPUT_DIR = "output"
+OUTPUT_IMAGE_DIR = "output/Image"
+OUTPUT_FIGURE_DIR = "output/Figure"
 COLORS = {
   "blue": "b",
   "green": "g",
@@ -44,6 +45,7 @@ BRIGHTNESS_FIGURE_TITLE_NAME = WINDOW_TITLE_PREFIX + "Brightness" + WINDOW_TITLE
 
 input_file_name = ""
 output_file_name = ""
+prefix_figure_title_name = ""
 equal_width = DEFAULT_EQUAL_WIDTH_BINS 
 is_dny_output = False
 verbosity = 0
@@ -110,6 +112,7 @@ def WaitngAnimate(sync_queue):
 def DefineSystemArgumentsProcess():
   global input_file_name
   global output_file_name
+  global prefix_figure_title_name
   global equal_width
   global is_dny_output
   global verbosity
@@ -126,10 +129,9 @@ def DefineSystemArgumentsProcess():
   args = parser.parse_args()
   
   input_file_name = args.file
-  if args.output_file == "":
-    output_file_name = ""
-  else:
+  if args.output_file != "":
     output_file_name = args.output_file + "_"
+    prefix_figure_title_name = '[ ' + args.output_file + ' ]: '
   equal_width = args.equal_width
   is_dny_output = args.is_dny_output
   verbosity = args.verbosity 
@@ -143,7 +145,7 @@ def DefineSystemArgumentsProcess():
 def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str, 
                    figure_title: str, xlabel: str, ylabel: str, equal_width_bins: int,
                    output_prefix_name: str, output_suffix_name: str):
-  global is_output_suspend
+  global is_output_suspend      # TODO: remove
   global is_dny_output
   
   figure_base_data=list(hsv_base_image.getdata())
@@ -160,15 +162,20 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
   if verbosity == NOISY_MODE or verbosity == VERY_NOISY_MODE:
     hsv_base_image.show()
   if is_dny_output == False:
-    with open(OUTPUT_DIR + "/" + output_prefix_name + output_suffix_name, "wb") as pointer_of_output_image_file:
+    with open(OUTPUT_IMAGE_DIR  + "/" + output_prefix_name + output_suffix_name, "wb") as pointer_of_output_image_file:
       hsv_base_image.save(pointer_of_output_image_file, 'PNG')
 
 ##################################################
 #                   主処理                 
 ##################################################
 def AnalyzeImage():
-  global is_running_process
+  global is_running_process     # TODO: remove
   global input_file_name
+  global prefix_figure_title_name
+  
+  hue_figure_title_name_with_prefix = prefix_figure_title_name + HUE_FIGURE_TITLE_NAME
+  saturation_figure_title_name_with_prefix = prefix_figure_title_name + SATURATION_FIGURE_TITLE_NAME
+  brightness_figure_title_name_with_prefix = prefix_figure_title_name + BRIGHTNESS_FIGURE_TITLE_NAME
   
   try:
     wait_controller = multiprocessing.Process(target=WaitngAnimate, args=(sync_queue,))
@@ -183,9 +190,9 @@ def AnalyzeImage():
       if verbosity >= VERY_NOISY_MODE:
         PrintDebugInfomation(input_image, hsv_image, hue_image, saturation_image, brightness_image)
       
-      figure_hue = plt.figure(HUE_FIGURE_TITLE_NAME)
-      figure_saturation = plt.figure(SATURATION_FIGURE_TITLE_NAME)
-      figure_brightness = plt.figure(BRIGHTNESS_FIGURE_TITLE_NAME)
+      figure_hue = plt.figure(hue_figure_title_name_with_prefix)
+      figure_saturation = plt.figure(saturation_figure_title_name_with_prefix)
+      figure_brightness = plt.figure(brightness_figure_title_name_with_prefix)
       hue_plot = figure_hue.add_subplot(1,1,1)
       saturation_plot = figure_saturation.add_subplot(1,1,1)
       brightness_plot = figure_brightness.add_subplot(1,1,1)
@@ -193,7 +200,7 @@ def AnalyzeImage():
       MakePlotFigure(hsv_base_image = hue_image,
                     figure = hue_plot,
                     plot_color = COLORS["blue"],
-                    figure_title = HUE_FIGURE_TITLE_NAME,
+                    figure_title = hue_figure_title_name_with_prefix,
                     xlabel = 'Value of Hue', ylabel = 'Frequent',
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
@@ -202,7 +209,7 @@ def AnalyzeImage():
       MakePlotFigure(hsv_base_image = saturation_image,
                     figure = saturation_plot,
                     plot_color = COLORS["blue"],
-                    figure_title = SATURATION_FIGURE_TITLE_NAME,
+                    figure_title = saturation_figure_title_name_with_prefix,
                     xlabel = 'Value of Saturation', ylabel = 'Frequent',
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
@@ -211,11 +218,15 @@ def AnalyzeImage():
       MakePlotFigure(hsv_base_image = brightness_image,
                     figure = brightness_plot,
                     plot_color = COLORS["blue"],
-                    figure_title = BRIGHTNESS_FIGURE_TITLE_NAME,
+                    figure_title = brightness_figure_title_name_with_prefix,
                     xlabel = 'Value of Brightness', ylabel = 'Frequent',
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Brightness.png')
+      
+      figure_hue.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Hue.png')
+      figure_saturation.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Saturation.png')
+      figure_brightness.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Brightness.png')
       
       sync_queue.put(MAIN_PROCESS_WAS_FINISHED)
       plt.show()
