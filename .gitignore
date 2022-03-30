@@ -105,6 +105,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv/
 env/
 venv/
 ENV/
@@ -128,3 +129,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Image file
+*.png
+*.PNG
+*.jpeg
+*.jpg
