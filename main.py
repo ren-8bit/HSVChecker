@@ -229,9 +229,9 @@ def AnalyzeImage():
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Brightness.png')
                     
-      hue_plot.set_xlim([default_xlim_min, default_xlim_max])
-      saturation_plot.set_xlim([default_xlim_min, default_xlim_max])
-      brightness_plot.set_xlim([default_xlim_min, default_xlim_max])
+      hue_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
+      saturation_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
+      brightness_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
       
       figure_hue.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Hue.png')
       figure_saturation.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Saturation.png')
