@@ -48,7 +48,7 @@ is_dny_output = False
 use_interactive_mode = False
 verbosity = 0
 default_xlim_max = 255
-default_xlim_min = 0 
+default_xlim_min = 0
 
 NOMAL_MODE = 0
 NOISY_MODE = 1
@@ -58,7 +58,7 @@ MAIN_PROCESS_IS_IN_PROGRESS = "InProgress"
 MAIN_PROCESS_WAS_FINISHED = "Finish"
 MAIN_PROCESS_REQUESTS_SLEEP_CALL = "Wait" 
 
-sync_queue = multiprocessing.Queue()
+sync_queue = multiprocessing.Queue(16)
 
 ##################################################
 #              デバッグ情報表示用                 
@@ -73,29 +73,39 @@ def PrintDebugInfomation(input_image, hsv_image, hue_image, saturation_image, br
 ##################################################
 #         実行中のアニメーション表示用                 
 ##################################################
-def WaitngAnimate(sync_queue):
+def WaitingAnimate(sync_queue):
+  global NOMAL_MODE
+  global NOISY_MODE
+  global VERY_NOISY_MODE
+
+  global MAIN_PROCESS_IS_IN_PROGRESS
+  global MAIN_PROCESS_WAS_FINISHED
+  global MAIN_PROCESS_REQUESTS_SLEEP_CALL
+  
   animation_dot = ['       ', '.      ', '..     ', '...    ', '....   ', '...... ']
   dot_idx = 0
   dot_len = len(animation_dot) - 1
   main_process_state = MAIN_PROCESS_IS_IN_PROGRESS
+  queue_value = ""
   
   try:
     for animation_cycle in itertools.cycle(['|', '/', '-', '\\']):
-      if sync_queue.qsize() > 0:
-        if sync_queue.get() == MAIN_PROCESS_WAS_FINISHED:
+      if sync_queue.empty() == False:
+        queue_value = sync_queue.get() 
+        if queue_value == MAIN_PROCESS_WAS_FINISHED:
           break
-        elif sync_queue.get() == MAIN_PROCESS_REQUESTS_SLEEP_CALL:
+        elif queue_value == MAIN_PROCESS_REQUESTS_SLEEP_CALL:
           main_process_state = MAIN_PROCESS_REQUESTS_SLEEP_CALL
-        elif sync_queue.get() == MAIN_PROCESS_IS_IN_PROGRESS:
+        elif queue_value == MAIN_PROCESS_IS_IN_PROGRESS:
           main_process_state = MAIN_PROCESS_IS_IN_PROGRESS
       if main_process_state == MAIN_PROCESS_REQUESTS_SLEEP_CALL:
-        time.sleep(0.1)
-        continue
-      sys.stdout.write('\r['+ animation_cycle + ']: Image analyzer is now in progress' + animation_dot[dot_idx])
-      if dot_idx == dot_len:
-        dot_idx = 0
+        pass
       else:
-        dot_idx += 1
+        sys.stdout.write('\r['+ animation_cycle + ']: Image analyzer is now in progress' + animation_dot[dot_idx])
+        if dot_idx == dot_len:
+          dot_idx = 0
+        else:
+          dot_idx += 1
       time.sleep(0.1)
     sys.stdout.write('\r[+]: Done🎉                                                 \n')
   except Exception as e:
@@ -103,7 +113,7 @@ def WaitngAnimate(sync_queue):
     sys.exit(ERROR_EXIT)
   except KeyboardInterrupt:
     pass
-  
+
   sys.exit(NORMAL_EXIT)
 
 ##################################################
@@ -148,15 +158,26 @@ def DefineSystemArgumentsProcess():
 def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str, 
                    figure_title: str, xlabel: str, ylabel: str, equal_width_bins: int,
                    output_prefix_name: str, output_suffix_name: str):
+  global sync_queue
+  
+  global NOMAL_MODE
+  global NOISY_MODE
+  global VERY_NOISY_MODE
+
+  global MAIN_PROCESS_IS_IN_PROGRESS
+  global MAIN_PROCESS_WAS_FINISHED
+  global MAIN_PROCESS_REQUESTS_SLEEP_CALL
+                   
   global is_dny_output
   
   figure_base_data=list(hsv_base_image.getdata())
   if verbosity == VERY_NOISY_MODE:
-    sync_queue.put(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
+    sync_queue.put_nowait(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
     time.sleep(0.5)
     print("\r>", output_suffix_name, WHITE_PADDING)
     print("\r   MAX:", max(figure_base_data), " , min: ", min(figure_base_data), WHITE_PADDING)
     sync_queue.put(MAIN_PROCESS_IS_IN_PROGRESS)
+  
   figure.hist(figure_base_data, bins=equal_width_bins, density=True, color=plot_color)
   figure.set_title(figure_title)
   figure.set_xlabel(xlabel)
@@ -171,6 +192,16 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
 #                   主処理                 
 ##################################################
 def AnalyzeImage():
+  global sync_queue
+  
+  global NOMAL_MODE
+  global NOISY_MODE
+  global VERY_NOISY_MODE
+
+  global MAIN_PROCESS_IS_IN_PROGRESS
+  global MAIN_PROCESS_WAS_FINISHED
+  global MAIN_PROCESS_REQUESTS_SLEEP_CALL
+  
   global input_file_name
   global prefix_figure_title_name
   global use_interactive_mode
@@ -183,7 +214,7 @@ def AnalyzeImage():
   brightness_figure_title_name_with_prefix = prefix_figure_title_name + BRIGHTNESS_FIGURE_TITLE_NAME
   
   try:
-    wait_controller = multiprocessing.Process(target=WaitngAnimate, args=(sync_queue,))
+    wait_controller = multiprocessing.Process(target=WaitingAnimate, args=(sync_queue,))
     wait_controller.start()
     
     with open(input_file_name, "rb") as pointer_of_input_image:
@@ -238,6 +269,9 @@ def AnalyzeImage():
       figure_brightness.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Brightness.png')
       
       sync_queue.put(MAIN_PROCESS_WAS_FINISHED)
+      time.sleep(0.5)
+      if wait_controller.is_alive() == True:
+        wait_controller.kill()
       
       if use_interactive_mode == True:
         plt.show()
