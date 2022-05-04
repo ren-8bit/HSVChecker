@@ -30,6 +30,7 @@ COLORS = {
   "white": "w"
 }
 DEFAULT_EQUAL_WIDTH_BINS = 255
+DEFAULT_NUMBER_OUTPUT_FORMAT='{:.1f}'
 WHITE_PADDING = "                                                "
 
 WINDOW_TITLE_PREFIX = "Figure of "
@@ -49,6 +50,10 @@ use_interactive_mode = False
 verbosity = 0
 default_xlim_max = 255
 default_xlim_min = 0
+
+DEFAULT_X_TEXT_POSITON = 5
+DEFAULT_Y_TEXT_POSITON = 0
+DEFAULT_BACKGROUND_COLOR = "#ffffff"
 
 NOMAL_MODE = 0
 NOISY_MODE = 1
@@ -153,6 +158,23 @@ def DefineSystemArgumentsProcess():
     print(args)
 
 ##################################################
+#                  算術換算用                 
+##################################################
+def CalcMeanValues(hue_data: np.array, saturation_data: np.array, brightness_data: np.array):
+  global DEFAULT_NUMBER_OUTPUT_FORMAT
+  
+  return np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.mean(hue_data, dtype=np.float64))), \
+            np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.mean(saturation_data, dtype=np.float64))), \
+              np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.mean(brightness_data, dtype=np.float64)))
+              
+def CalcMedianValues(hue_data: np.array, saturation_data: np.array, brightness_data: np.array):
+  global DEFAULT_NUMBER_OUTPUT_FORMAT
+  
+  return np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.median(hue_data))), \
+            np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.median(saturation_data))), \
+              np.float64(DEFAULT_NUMBER_OUTPUT_FORMAT.format(np.median(brightness_data)))
+
+##################################################
 #                  グラフ制御用                 
 ##################################################
 def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str, 
@@ -226,6 +248,21 @@ def AnalyzeImage():
       if verbosity >= VERY_NOISY_MODE:
         PrintDebugInfomation(input_image, hsv_image, hue_image, saturation_image, brightness_image)
       
+      hue_data = np.array(list(hue_image.getdata()))
+      saturation_data = np.array(list(saturation_image.getdata()))
+      brightness_data = np.array(list(brightness_image.getdata()))
+      
+      hue_mean, saturation_mean, brightness_mean = CalcMeanValues(hue_data, saturation_data, brightness_data)
+      hue_median, saturation_median, brightness_median = CalcMedianValues(hue_data, saturation_data, brightness_data)
+      
+      if verbosity == VERY_NOISY_MODE:
+        sync_queue.put_nowait(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
+        time.sleep(0.5)
+        print("\rhue mean:", hue_mean, ", hue median :", hue_median, WHITE_PADDING)
+        print("\rsaturation mean:", saturation_mean, ", saturation median :", saturation_median, WHITE_PADDING)
+        print("\rbrightness mean:", brightness_mean, ", brightness median :", brightness_median, WHITE_PADDING)
+        sync_queue.put(MAIN_PROCESS_IS_IN_PROGRESS)
+      
       figure_hue = plt.figure(hue_figure_title_name_with_prefix)
       figure_saturation = plt.figure(saturation_figure_title_name_with_prefix)
       figure_brightness = plt.figure(brightness_figure_title_name_with_prefix)
@@ -263,6 +300,24 @@ def AnalyzeImage():
       hue_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
       saturation_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
       brightness_plot.set_xlim(left=default_xlim_min, right=default_xlim_max)
+      
+      y_bottom = 0.0
+      y_top = 0.0
+      y_position = 0.0
+      template_phrase_show_analytics_values = '{:>7}: {:>4.1f}\n{:>7}: {:>4.1f}'
+      
+      y_bottom, y_top = hue_plot.get_ylim()
+      y_position = y_top * 0.98                   # 係数は暫定
+      hue_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', hue_mean, 'Median', hue_median), \
+                        fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
+      y_bottom, y_top = saturation_plot.get_ylim()
+      y_position = y_top * 0.98                   # 係数は暫定
+      saturation_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', saturation_mean, 'Median', saturation_median), \
+                        fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
+      y_bottom, y_top = brightness_plot.get_ylim()
+      y_position = y_top * 0.98                   # 係数は暫定
+      brightness_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', brightness_mean, 'Median', brightness_median), \
+                        fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
       
       figure_hue.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Hue.png')
       figure_saturation.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Saturation.png')
