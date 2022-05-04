@@ -47,6 +47,8 @@ equal_width = DEFAULT_EQUAL_WIDTH_BINS
 is_dny_output = False
 use_interactive_mode = False
 verbosity = 0
+default_xlim_max = 255
+default_xlim_min = 0 
 
 NOMAL_MODE = 0
 NOISY_MODE = 1
@@ -173,6 +175,9 @@ def AnalyzeImage():
   global prefix_figure_title_name
   global use_interactive_mode
   
+  global default_xlim_max
+  global default_xlim_min
+  
   hue_figure_title_name_with_prefix = prefix_figure_title_name + HUE_FIGURE_TITLE_NAME
   saturation_figure_title_name_with_prefix = prefix_figure_title_name + SATURATION_FIGURE_TITLE_NAME
   brightness_figure_title_name_with_prefix = prefix_figure_title_name + BRIGHTNESS_FIGURE_TITLE_NAME
@@ -223,6 +228,10 @@ def AnalyzeImage():
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Brightness.png')
+                    
+      hue_plot.set_xlim([default_xlim_min, default_xlim_max])
+      saturation_plot.set_xlim([default_xlim_min, default_xlim_max])
+      brightness_plot.set_xlim([default_xlim_min, default_xlim_max])
       
       figure_hue.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Hue.png')
       figure_saturation.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Saturation.png')
