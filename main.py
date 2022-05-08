@@ -9,6 +9,7 @@ import time
 
 import numpy as np
 import matplotlib.pyplot as plt
+import japanize_matplotlib
 from PIL import Image
 
 ##################################################
@@ -33,13 +34,25 @@ DEFAULT_EQUAL_WIDTH_BINS = 255
 DEFAULT_NUMBER_OUTPUT_FORMAT='{:.1f}'
 WHITE_PADDING = "                                                "
 
-WINDOW_TITLE_PREFIX = "Figure of "
-WINDOW_TITLE_SUFFIX = " - Normalized"
-
-DEFAULT_FIGURE_TITLE_NAME = "Figure" + WINDOW_TITLE_SUFFIX
-HUE_FIGURE_TITLE_NAME = WINDOW_TITLE_PREFIX + "Hue" + WINDOW_TITLE_SUFFIX
-SATURATION_FIGURE_TITLE_NAME = WINDOW_TITLE_PREFIX + "Saturation" + WINDOW_TITLE_SUFFIX
-BRIGHTNESS_FIGURE_TITLE_NAME = WINDOW_TITLE_PREFIX + "Brightness" + WINDOW_TITLE_SUFFIX
+# グラフタイトル用の変数
+ENGLISH_WINDOW_TITLE_PREFIX = "Figure of "
+ENGLISH_WINDOW_TITLE_SUFFIX = " - Normalized"
+ENGLISH_DEFAULT_FIGURE_TITLE_NAME = "Figure" + ENGLISH_WINDOW_TITLE_SUFFIX
+JAPANESE_WINDOW_TITLE_PREFIX = "図表: "
+JAPANESE_WINDOW_TITLE_SUFFIX = " - 正規化済み"
+JAPANESE_DEFAULT_FIGURE_TITLE_NAME = "図表: " + JAPANESE_WINDOW_TITLE_SUFFIX
+HUE_FIGURE_TITLE_NAME = {
+  'english': ENGLISH_WINDOW_TITLE_PREFIX + "Hue" + ENGLISH_WINDOW_TITLE_SUFFIX,
+  'japanese': JAPANESE_WINDOW_TITLE_PREFIX + "色相" + JAPANESE_WINDOW_TITLE_SUFFIX
+}
+SATURATION_FIGURE_TITLE_NAME = {
+  'english': ENGLISH_WINDOW_TITLE_PREFIX + "Saturation" + ENGLISH_WINDOW_TITLE_SUFFIX,
+  'japanese': JAPANESE_WINDOW_TITLE_PREFIX + "彩度" + JAPANESE_WINDOW_TITLE_SUFFIX
+}
+BRIGHTNESS_FIGURE_TITLE_NAME = {
+  'english': ENGLISH_WINDOW_TITLE_PREFIX + "Brightness" + ENGLISH_WINDOW_TITLE_SUFFIX,
+  'japanese': JAPANESE_WINDOW_TITLE_PREFIX + "明度" + JAPANESE_WINDOW_TITLE_SUFFIX
+}
 
 input_file_name = ""
 output_file_name = ""
@@ -148,7 +161,7 @@ def DefineSystemArgumentsProcess():
   input_file_name = args.file
   if args.output_file != "":
     output_file_name = args.output_file + "_"
-    prefix_figure_title_name = '[ ' + args.output_file + ' ]: '
+    prefix_figure_title_name = '【 ' + args.output_file + ' 】 '
   equal_width = args.equal_width
   is_dny_output = args.is_dny_output
   use_interactive_mode = args.use_interactive_mode
@@ -231,9 +244,46 @@ def AnalyzeImage():
   global default_xlim_max
   global default_xlim_min
   
-  hue_figure_title_name_with_prefix = prefix_figure_title_name + HUE_FIGURE_TITLE_NAME
-  saturation_figure_title_name_with_prefix = prefix_figure_title_name + SATURATION_FIGURE_TITLE_NAME
-  brightness_figure_title_name_with_prefix = prefix_figure_title_name + BRIGHTNESS_FIGURE_TITLE_NAME
+  # グラフ表示の制御用変数
+  hue_figure_title_name_with_prefix = prefix_figure_title_name + HUE_FIGURE_TITLE_NAME['japanese']
+  saturation_figure_title_name_with_prefix = prefix_figure_title_name + SATURATION_FIGURE_TITLE_NAME['japanese']
+  brightness_figure_title_name_with_prefix = prefix_figure_title_name + BRIGHTNESS_FIGURE_TITLE_NAME['japanese']
+  xlabel_list = {
+    'hue_label': {
+      'english': 'Value of Hue',
+      'japanese': '色相の値'
+    },
+    'saturation_label': {
+      'english': 'Value of saturation',
+      'japanese': '彩度の値'
+    },
+    'brightness_label': {
+      'english': 'Value of brightness',
+      'japanese': '明度の値'
+    },
+  }
+  ylabel_list = {
+    'hue_label': {
+      'english': 'Frequent',
+      'japanese': '頻出度'
+    },
+    'saturation_label': {
+      'english': 'Frequent',
+      'japanese': '頻出度'
+    },
+    'brightness_label': {
+      'english': 'Frequent',
+      'japanese': '頻出度'
+    },
+  }
+  mean_label = {
+    'english': 'Mean',
+    'japanese': '平均値'
+  }
+  median_label = {
+    'english': 'Median',
+    'japanese': '中央値'
+  }
   
   try:
     wait_controller = multiprocessing.Process(target=WaitingAnimate, args=(sync_queue,))
@@ -274,7 +324,7 @@ def AnalyzeImage():
                     figure = hue_plot,
                     plot_color = COLORS["blue"],
                     figure_title = hue_figure_title_name_with_prefix,
-                    xlabel = 'Value of Hue', ylabel = 'Frequent',
+                    xlabel = xlabel_list['hue_label']['japanese'], ylabel = ylabel_list['hue_label']['japanese'],
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Hue.png')
@@ -283,7 +333,7 @@ def AnalyzeImage():
                     figure = saturation_plot,
                     plot_color = COLORS["blue"],
                     figure_title = saturation_figure_title_name_with_prefix,
-                    xlabel = 'Value of Saturation', ylabel = 'Frequent',
+                    xlabel = xlabel_list['saturation_label']['japanese'], ylabel = ylabel_list['saturation_label']['japanese'],
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Saturation.png')
@@ -292,7 +342,7 @@ def AnalyzeImage():
                     figure = brightness_plot,
                     plot_color = COLORS["blue"],
                     figure_title = brightness_figure_title_name_with_prefix,
-                    xlabel = 'Value of Brightness', ylabel = 'Frequent',
+                    xlabel = xlabel_list['brightness_label']['japanese'], ylabel = ylabel_list['brightness_label']['japanese'],
                     equal_width_bins = equal_width,
                     output_prefix_name = output_file_name,
                     output_suffix_name = 'Image_Brightness.png')
@@ -308,15 +358,15 @@ def AnalyzeImage():
       
       y_bottom, y_top = hue_plot.get_ylim()
       y_position = y_top * 0.98                   # 係数は暫定
-      hue_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', hue_mean, 'Median', hue_median), \
+      hue_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format(mean_label['japanese'], hue_mean, median_label['japanese'], hue_median), \
                         fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
       y_bottom, y_top = saturation_plot.get_ylim()
       y_position = y_top * 0.98                   # 係数は暫定
-      saturation_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', saturation_mean, 'Median', saturation_median), \
+      saturation_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format(mean_label['japanese'], saturation_mean, median_label['japanese'], saturation_median), \
                         fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
       y_bottom, y_top = brightness_plot.get_ylim()
       y_position = y_top * 0.98                   # 係数は暫定
-      brightness_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format('Mean', brightness_mean, 'Median', brightness_median), \
+      brightness_plot.text(DEFAULT_X_TEXT_POSITON, y_position, template_phrase_show_analytics_values.format(mean_label['japanese'], brightness_mean, median_label['japanese'], brightness_median), \
                         fontsize=8,verticalalignment="top", backgroundcolor=DEFAULT_BACKGROUND_COLOR)
       
       figure_hue.savefig(OUTPUT_FIGURE_DIR + "/" + output_file_name + 'Image_Hue.png')
