@@ -442,6 +442,7 @@ if __name__ == '__main__':
         if filter_pattern.search(str_file_name) != None:
           print(str_file_name)
           AnalyzeImage(str_file_name, True)
+      print("The process has been completed🎉")
     # Single file process mode
     else:
       print("Enter single file process mode:")
