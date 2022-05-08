@@ -408,6 +408,12 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool):
       
       if use_interactive_mode == True:
         plt.show()
+        
+      # 後処理(メモリ・リーク対策)
+      plt.clf()
+      plt.close(figure_hue)
+      plt.close(figure_saturation)
+      plt.close(figure_brightness)
       
   except Exception as e:
     wait_controller.terminate()
