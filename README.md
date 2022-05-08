@@ -1,4 +1,11 @@
-# HSVChecker ver. 0.1.1
+# HSVChecker ver. 0.1.2
+
+## ライセンス上の重要な伝達事項
+
+利用の際には以下URLにあるライセンスに同意の上でご利用ください。
+
+同意が必要なライセンス:
+1. [IPAフォントライセンス v1.0](https://github.com/uehara1414/japanize-matplotlib/blob/master/japanize_matplotlib/fonts/IPA_Font_License_Agreement_v1.0.txt)
 
 ## スクリプトの概要
 
@@ -20,6 +27,18 @@ $ pipenv sync
 $ pipenv shell
 ```
 
+## 環境再構築方法
+
+``` bash
+# ローカル環境の全削除
+$ pipenv --rm
+# ローカル環境の再構築
+$ pipenv sync
+# 仮想環境に移行
+$ pipenv shell
+```
+
+
 ## スクリプトの使い方
 
 - 以下のコマンドを実行することで利用可能
@@ -39,6 +58,8 @@ $ python main.py -h
 - python: 3.9.1
 - matplotlib: 3.5.0
   - グラフ作成表示に利用
+- japanize-matplotlib: 1.1.3
+  - 日本語表示用のライブラリ
 - pillow: 8.4.0
   - 画像変換・加工に利用
 - NumPy: 1.22.0
@@ -46,7 +67,7 @@ $ python main.py -h
 
 ## 伝達事項
 
+- `japanize-matplotlib` を導入しましたため、日本語表示が可能になりました。
+  - ver. 0.1.1以前をご利用の方はコード更新と共に実行環境の更新が必要になります。
 - スクリプトの動作保障などは行っておりません。利用は自己責任の範囲で行ってください。
   - 不具合が起きないよう作りましたが何か見つけた場合はIssueにでも投げて頂ければ対応するかもしれません。
-- matplotlibに日本語フォントを組み込んでないので文字化け起こします。
-  - 入力することは可能ですが出力が豆腐に化けます。
