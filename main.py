@@ -1,11 +1,14 @@
 # -*- encoding:utf-8 -*-
 
+import os
 import sys
+import re
 import argparse
 import itertools
 import multiprocessing
 import asyncio
 import time
+import glob
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -63,6 +66,7 @@ use_interactive_mode = False
 verbosity = 0
 default_xlim_max = 255
 default_xlim_min = 0
+regex_file_name_pattern = r'.+\.(png|PNG)'
 
 DEFAULT_X_TEXT_POSITON = 5
 DEFAULT_Y_TEXT_POSITON = 0
@@ -146,29 +150,38 @@ def DefineSystemArgumentsProcess():
   global use_interactive_mode
   global verbosity
   
-  parser = argparse.ArgumentParser(description="Create a separated HSV parameter image and making these figures.")
-  parser._action_groups.pop()
-  required = parser.add_argument_group('required arguments')
-  optional = parser.add_argument_group('optional arguments')
-  optional.add_argument("-v", "--verbosity", default=0, action="count", help="Increase output verbosity. The value is up to 2.")
-  optional.add_argument("-e", "--equal-width", type=int, default=DEFAULT_EQUAL_WIDTH_BINS, help="Set histogram figures's equal-width bins. The default value is 255.")
-  optional.add_argument("-o", "--output-file", "--output-file-prefix", type=str, default="", help="The prefix result file name.")
-  optional.add_argument("-d", "--is-dny-output", action='store_const', default=False, const=True, help="Deny output to the HSV files.")
-  optional.add_argument("-i", "--use-interactive-mode", action='store_const', default=False, const=True, help="Use interactive mode.")
-  required.add_argument("-f", "--file", type=str, help="The analyzer target file name.", required=True)
-  args = parser.parse_args()
+  try:
+    parser = argparse.ArgumentParser(description="Create a separated HSV parameter image and making these figures.")
+    parser._action_groups.pop()
+    required = parser.add_argument_group('required arguments')
+    optional = parser.add_argument_group('optional arguments')
+    optional.add_argument("-v", "--verbosity", default=0, action="count", help="Increase output verbosity. The value is up to 2.")
+    optional.add_argument("-e", "--equal-width", type=int, default=DEFAULT_EQUAL_WIDTH_BINS, help="Set histogram figures's equal-width bins. The default value is 255.")
+    optional.add_argument("-o", "--output-file", "--output-file-prefix", type=str, default="", help="The prefix result file name.If batch mode, this parameter will ignore.")
+    optional.add_argument("-d", "--is-dny-output", action='store_const', default=False, const=True, help="Deny output to the HSV files.")
+    optional.add_argument("-i", "--use-interactive-mode", action='store_const', default=False, const=True, help="Use interactive mode.")
+    optional.add_argument("-f", "--file", type=str, default="", help="The analyzer target file name.")
+    args = parser.parse_args()
+    
+    input_file_name = args.file
+    if args.output_file != "":
+      output_file_name = args.output_file + "_"
+      prefix_figure_title_name = '【 ' + args.output_file + ' 】 '
+    equal_width = args.equal_width
+    is_dny_output = args.is_dny_output
+    use_interactive_mode = args.use_interactive_mode
+    verbosity = args.verbosity 
+    
+    if verbosity == VERY_NOISY_MODE:
+      print(args)
+  except Exception as e:
+    print("\nUnexpected error: " + str(e)) 
+    sys.exit(ERROR_EXIT)
+  except KeyboardInterrupt:
+    print("\nKeyboard Interrupt: The script aborted.")
+    sys.exit(NORMAL_EXIT)
   
-  input_file_name = args.file
-  if args.output_file != "":
-    output_file_name = args.output_file + "_"
-    prefix_figure_title_name = '【 ' + args.output_file + ' 】 '
-  equal_width = args.equal_width
-  is_dny_output = args.is_dny_output
-  use_interactive_mode = args.use_interactive_mode
-  verbosity = args.verbosity 
-  
-  if verbosity == VERY_NOISY_MODE:
-    print(args)
+  return NORMAL_EXIT
 
 ##################################################
 #                  算術換算用                 
@@ -226,7 +239,7 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
 ##################################################
 #                   主処理                 
 ##################################################
-def AnalyzeImage():
+def AnalyzeImage(process_file_name: str, batch_mode: bool):
   global sync_queue
   
   global NOMAL_MODE
@@ -238,6 +251,7 @@ def AnalyzeImage():
   global MAIN_PROCESS_REQUESTS_SLEEP_CALL
   
   global input_file_name
+  global output_file_name
   global prefix_figure_title_name
   global use_interactive_mode
   
@@ -288,7 +302,21 @@ def AnalyzeImage():
   try:
     wait_controller = multiprocessing.Process(target=WaitingAnimate, args=(sync_queue,))
     wait_controller.start()
-    
+
+    if batch_mode == True:
+      input_file_name = process_file_name
+      base_file_name = os.path.basename(process_file_name).split('.')[0]
+      output_file_name = base_file_name + "_"
+      prefix_figure_title_name = ""
+      suffix_figure_title_name = " - " + base_file_name
+      
+      # グラフのタイトルをファイル名から動的に付与
+      hue_figure_title_name_with_prefix = HUE_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
+      saturation_figure_title_name_with_prefix = SATURATION_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
+      brightness_figure_title_name_with_prefix = BRIGHTNESS_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
+    else:
+      pass
+      
     with open(input_file_name, "rb") as pointer_of_input_image:
       input_image = Image.open(pointer_of_input_image)
     
@@ -383,10 +411,12 @@ def AnalyzeImage():
       
   except Exception as e:
     wait_controller.terminate()
-    print("Unexpected error: " + str(e)) 
+    print("\nUnexpected error: " + str(e)) 
     sys.exit(ERROR_EXIT)
   except KeyboardInterrupt:
     wait_controller.terminate()
+    print("\nKeyboard Interrupt: The script aborted.")
+    sys.exit(NORMAL_EXIT)
   
   return NORMAL_EXIT
 
@@ -396,9 +426,26 @@ def AnalyzeImage():
 if __name__ == '__main__':
   try:
     DefineSystemArgumentsProcess()
-    AnalyzeImage()
+    
+    # Batch mode
+    if input_file_name == "":
+      print("Enter batch mode:")
+      filter_pattern = re.compile(regex_file_name_pattern)
+      
+      for str_file_name in glob.iglob('input/**', recursive=True):
+        if filter_pattern.search(str_file_name) != None:
+          print(str_file_name)
+          AnalyzeImage(str_file_name, True)
+    # Single file process mode
+    else:
+      print("Enter single file process mode:")
+      AnalyzeImage(input_file_name, False)
+    
   except Exception as e:
-    print("Unexpected error: " + str(e)) 
+    print("\nUnexpected error: " + str(e)) 
     sys.exit(ERROR_EXIT)
+  except KeyboardInterrupt:
+    print("\nKeyboard Interrupt: The script aborted.")
+    sys.exit(NORMAL_EXIT)
   
   sys.exit(NORMAL_EXIT)
