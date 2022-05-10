@@ -66,7 +66,7 @@ use_interactive_mode = False
 verbosity = 0
 default_xlim_max = 255
 default_xlim_min = 0
-regex_file_name_pattern = r'.+\.(png|PNG)'
+regex_file_name_pattern = r'.+\.(png|PNG|jpg|jpeg|JPG|JPEG)'
 
 DEFAULT_X_TEXT_POSITON = 5
 DEFAULT_Y_TEXT_POSITON = 0
