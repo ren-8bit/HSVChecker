@@ -10,6 +10,7 @@ import asyncio
 import time
 import glob
 import csv
+import tracemalloc
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -66,6 +67,7 @@ prefix_figure_title_name = ""
 equal_width = DEFAULT_EQUAL_WIDTH_BINS 
 is_dny_output = False
 use_interactive_mode = False
+is_memory_trace_mode = False
 verbosity = 0
 default_xlim_max = 255
 default_xlim_min = 0
@@ -84,6 +86,21 @@ MAIN_PROCESS_WAS_FINISHED = "Finish"
 MAIN_PROCESS_REQUESTS_SLEEP_CALL = "Wait" 
 
 sync_queue = multiprocessing.Queue(16)
+
+
+class TraceMemoryForDebug:
+  def __init__(self):
+    tracemalloc.start()
+    self.start_snapshot = tracemalloc.take_snapshot()
+    self.top_stats = self.start_snapshot.statistics('lineno')
+    
+  def PrintCurrentMemoryStatus(self):
+    self.current_snapshot = tracemalloc.take_snapshot()
+    self.top_stats = self.current_snapshot.compare_to(self.start_snapshot, 'lineno')
+    
+    print("[ Top 10 differences ]")
+    for stat in self.top_stats[:10]:
+        print(stat)
 
 ##################################################
 #              デバッグ情報表示用                 
@@ -151,6 +168,7 @@ def DefineSystemArgumentsProcess():
   global equal_width
   global is_dny_output
   global use_interactive_mode
+  global is_memory_trace_mode
   global verbosity
   
   try:
@@ -163,6 +181,7 @@ def DefineSystemArgumentsProcess():
     optional.add_argument("-o", "--output-file", "--output-file-prefix", type=str, default="", help="The prefix result file name.If batch mode, this parameter will ignore.")
     optional.add_argument("-d", "--is-dny-output", action='store_const', default=False, const=True, help="Deny output to the HSV files.")
     optional.add_argument("-i", "--use-interactive-mode", action='store_const', default=False, const=True, help="Use interactive mode.")
+    optional.add_argument("-t", "--is_memory_trace_mode", action='store_const', default=False, const=True, help="Use memory trace mode for develop.")
     optional.add_argument("-f", "--file", type=str, default="", help="The analyzer target file name.")
     args = parser.parse_args()
     
@@ -173,6 +192,7 @@ def DefineSystemArgumentsProcess():
     equal_width = args.equal_width
     is_dny_output = args.is_dny_output
     use_interactive_mode = args.use_interactive_mode
+    is_memory_trace_mode = args.is_memory_trace_mode
     verbosity = args.verbosity 
     
     if verbosity == VERY_NOISY_MODE:
@@ -439,6 +459,9 @@ if __name__ == '__main__':
     # 初期処理
     DefineSystemArgumentsProcess()
     
+    if is_memory_trace_mode == True:
+      memory_leak_checker = TraceMemoryForDebug()      
+      
     is_csv_file_exist = os.path.isfile(CSV_FILE_NAME)
     if is_csv_file_exist == False:
       with open(CSV_FILE_NAME, mode='w', encoding='utf-8', newline='') as new_csv_file:
@@ -457,11 +480,16 @@ if __name__ == '__main__':
           if filter_pattern.search(str_file_name) != None:
             print(str_file_name)
             AnalyzeImage(str_file_name, True, result_csv_writer)
+            
+            if is_memory_trace_mode == True:
+              memory_leak_checker.PrintCurrentMemoryStatus()
         print("The process has been completed🎉")
       # Single file process mode
       else:
         print("Enter single file process mode:")
         AnalyzeImage(input_file_name, False, result_csv_writer)
+        if is_memory_trace_mode == True:
+              memory_leak_checker.PrintCurrentMemoryStatus()
     
   except Exception as e:
     print("\nUnexpected error: " + str(e)) 
