@@ -9,6 +9,7 @@ import multiprocessing
 import asyncio
 import time
 import glob
+import csv
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,6 +24,8 @@ ERROR_EXIT = 1
 
 OUTPUT_IMAGE_DIR = "output/Image"
 OUTPUT_FIGURE_DIR = "output/Figure"
+OUTPUT_CSV_DIR = "output/csv"
+CSV_FILE_NAME = OUTPUT_CSV_DIR + "/Image_statistics.csv"
 COLORS = {
   "blue": "b",
   "green": "g",
@@ -239,7 +242,7 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
 ##################################################
 #                   主処理                 
 ##################################################
-def AnalyzeImage(process_file_name: str, batch_mode: bool):
+def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer):
   global sync_queue
   
   global NOMAL_MODE
@@ -315,7 +318,7 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool):
       saturation_figure_title_name_with_prefix = SATURATION_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
       brightness_figure_title_name_with_prefix = BRIGHTNESS_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
     else:
-      pass
+      base_file_name = os.path.basename(process_file_name).split('.')[0]
       
     with open(input_file_name, "rb") as pointer_of_input_image:
       input_image = Image.open(pointer_of_input_image)
@@ -332,6 +335,8 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool):
       
       hue_mean, saturation_mean, brightness_mean = CalcMeanValues(hue_data, saturation_data, brightness_data)
       hue_median, saturation_median, brightness_median = CalcMedianValues(hue_data, saturation_data, brightness_data)
+      
+      result_csv_writer.writerow([base_file_name, hue_mean, hue_median, saturation_mean, saturation_median, brightness_mean, brightness_median])
       
       if verbosity == VERY_NOISY_MODE:
         sync_queue.put_nowait(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
@@ -431,22 +436,32 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool):
 ##################################################
 if __name__ == '__main__':
   try:
+    # 初期処理
     DefineSystemArgumentsProcess()
     
-    # Batch mode
-    if input_file_name == "":
-      print("Enter batch mode:")
-      filter_pattern = re.compile(regex_file_name_pattern)
+    is_csv_file_exist = os.path.isfile(CSV_FILE_NAME)
+    if is_csv_file_exist == False:
+      with open(CSV_FILE_NAME, mode='w', encoding='utf-8', newline='') as new_csv_file:
+        init_writer = csv.writer(new_csv_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        init_writer.writerow(['# ファイル名', '色相の平均値', '色相の中央値',  '彩度の平均値', '彩度の中央値', '明度の平均値', '明度の中央値'])
+    
+    with open(CSV_FILE_NAME, mode='a', encoding='utf-8', newline='') as result_csv_file:
+      result_csv_writer = csv.writer(result_csv_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
       
-      for str_file_name in glob.iglob('input/**', recursive=True):
-        if filter_pattern.search(str_file_name) != None:
-          print(str_file_name)
-          AnalyzeImage(str_file_name, True)
-      print("The process has been completed🎉")
-    # Single file process mode
-    else:
-      print("Enter single file process mode:")
-      AnalyzeImage(input_file_name, False)
+      # Batch mode
+      if input_file_name == "":
+        print("Enter batch mode:")
+        filter_pattern = re.compile(regex_file_name_pattern)
+        
+        for str_file_name in glob.iglob('input/**', recursive=True):
+          if filter_pattern.search(str_file_name) != None:
+            print(str_file_name)
+            AnalyzeImage(str_file_name, True, result_csv_writer)
+        print("The process has been completed🎉")
+      # Single file process mode
+      else:
+        print("Enter single file process mode:")
+        AnalyzeImage(input_file_name, False, result_csv_writer)
     
   except Exception as e:
     print("\nUnexpected error: " + str(e)) 
