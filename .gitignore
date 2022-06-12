@@ -16,7 +16,6 @@ eggs/
 .eggs/
 lib/
 lib64/
-output/
 parts/
 sdist/
 var/
@@ -135,3 +134,4 @@ dmypy.json
 *.PNG
 *.jpeg
 *.jpg
+*.csv
