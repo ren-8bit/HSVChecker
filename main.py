@@ -11,6 +11,7 @@ import time
 import glob
 import csv
 import tracemalloc
+import gc
 
 import numpy as np
 import matplotlib
@@ -42,6 +43,7 @@ COLORS = {
 DEFAULT_EQUAL_WIDTH_BINS = 255
 DEFAULT_NUMBER_OUTPUT_FORMAT='{:.1f}'
 WHITE_PADDING = "                                                "
+BUFFER_POOL_SIZE = 10
 
 # グラフタイトル用の変数
 ENGLISH_WINDOW_TITLE_PREFIX = "Figure of "
@@ -476,6 +478,7 @@ if __name__ == '__main__':
       # Batch mode
       if input_file_name == "":
         print("Enter batch mode:")
+        loop_index = 0
         filter_pattern = re.compile(regex_file_name_pattern)
         
         for str_file_name in glob.iglob('input/**', recursive=True):
@@ -485,6 +488,14 @@ if __name__ == '__main__':
             
             if is_memory_trace_mode == True:
               memory_leak_checker.PrintCurrentMemoryStatus()
+            
+            # メモリ・リーク暫定対応
+            loop_index += 1
+            if (loop_index % BUFFER_POOL_SIZE) == 0:
+              gc.collect()                  # 効果が怪しいけど...
+              result_csv_file.flush()       # 応急退避
+              loop_index = 0
+          
         print("The process has been completed🎉")
       # Single file process mode
       else:
