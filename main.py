@@ -13,6 +13,8 @@ import csv
 import tracemalloc
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')                 # お試し
 import matplotlib.pyplot as plt
 import japanize_matplotlib
 from PIL import Image
