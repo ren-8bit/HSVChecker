@@ -135,3 +135,7 @@ dmypy.json
 *.jpeg
 *.jpg
 *.csv
+
+# Other ignore file
+*.txt
+.DS_Store
