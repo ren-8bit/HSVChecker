@@ -97,6 +97,11 @@ class TraceMemoryForDebug:
     tracemalloc.start()
     self.start_snapshot = tracemalloc.take_snapshot()
     self.top_stats = self.start_snapshot.statistics('lineno')
+  
+  def __del__(self):
+    del self.start_snapshot
+    del self.top_stats
+    tracemalloc.stop()
     
   def PrintCurrentMemoryStatus(self):
     self.current_snapshot = tracemalloc.take_snapshot()
