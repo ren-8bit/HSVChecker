@@ -4,6 +4,7 @@ import os
 import sys
 import re
 import argparse
+import json
 import itertools
 import multiprocessing
 import asyncio
@@ -29,7 +30,9 @@ ERROR_EXIT = 1
 OUTPUT_IMAGE_DIR = "output/Image"
 OUTPUT_FIGURE_DIR = "output/Figure"
 OUTPUT_CSV_DIR = "output/csv"
+OUTPUT_JSON_DIR = "output/json"
 CSV_FILE_NAME = OUTPUT_CSV_DIR + "/Image_statistics.csv"
+JSON_FILE_NAME = OUTPUT_JSON_DIR + "/statistics_report.json"
 COLORS = {
   "blue": "b",
   "green": "g",
@@ -76,6 +79,7 @@ verbosity = 0
 default_xlim_max = 255
 default_xlim_min = 0
 regex_file_name_pattern = r'.+\.(png|PNG|jpg|jpeg|JPG|JPEG)'
+is_init_process = True
 
 DEFAULT_X_TEXT_POSITON = 5
 DEFAULT_Y_TEXT_POSITON = 0
@@ -271,7 +275,7 @@ def MakePlotFigure(hsv_base_image: Image, figure, plot_color: str,
 ##################################################
 #                   主処理                 
 ##################################################
-def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer):
+def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer, result_json_file):
   global sync_queue
   
   global NOMAL_MODE
@@ -286,6 +290,7 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer):
   global output_file_name
   global prefix_figure_title_name
   global use_interactive_mode
+  global is_init_process
   
   global default_xlim_max
   global default_xlim_min
@@ -341,6 +346,13 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer):
       output_file_name = base_file_name + "_"
       prefix_figure_title_name = ""
       suffix_figure_title_name = " - " + base_file_name
+
+      ## for csv & json
+      base_file_name_with_split = base_file_name.split('_')
+      sales_count = int(base_file_name_with_split[0])
+      maker_name = base_file_name_with_split[1]
+      seles_date = base_file_name_with_split[2]
+      software_name = ' '.join(base_file_name_with_split[3:])
       
       # グラフのタイトルをファイル名から動的に付与
       hue_figure_title_name_with_prefix = HUE_FIGURE_TITLE_NAME['japanese'] + suffix_figure_title_name
@@ -365,8 +377,33 @@ def AnalyzeImage(process_file_name: str, batch_mode: bool, result_csv_writer):
       hue_mean, saturation_mean, brightness_mean = CalcMeanValues(hue_data, saturation_data, brightness_data)
       hue_median, saturation_median, brightness_median = CalcMedianValues(hue_data, saturation_data, brightness_data)
       
-      result_csv_writer.writerow([base_file_name, hue_mean, hue_median, saturation_mean, saturation_median, brightness_mean, brightness_median])
-      
+      result_csv_writer.writerow([sales_count, maker_name, seles_date, software_name, hue_mean, hue_median, saturation_mean, saturation_median, brightness_mean, brightness_median])
+      json_retult_data = {
+          "発売元": maker_name,
+          "発売日": seles_date,
+          "売上": sales_count,
+          "パッケージ名": software_name,
+          "色相": [{
+            "平均値": hue_mean,
+            "頻出値": hue_median,
+          }],
+          "彩度": [{
+            "平均値": saturation_mean,
+            "頻出値": saturation_median,
+          }],
+          "明度": [{
+            "平均値": brightness_mean,
+            "頻出値": brightness_median,
+          }],
+      }
+      if is_init_process == True:
+        is_init_process = False
+      else:
+        result_json_file.write(',')
+
+      json.dump(json_retult_data, result_json_file, ensure_ascii=False)
+      result_json_file.write('\n')
+
       if verbosity == VERY_NOISY_MODE:
         sync_queue.put_nowait(MAIN_PROCESS_REQUESTS_SLEEP_CALL)
         time.sleep(0.5)
@@ -474,41 +511,42 @@ if __name__ == '__main__':
     is_csv_file_exist = os.path.isfile(CSV_FILE_NAME)
     if is_csv_file_exist == False:
       with open(CSV_FILE_NAME, mode='w', encoding='utf-8', newline='') as new_csv_file:
-        init_writer = csv.writer(new_csv_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        init_writer.writerow(['# ファイル名', '色相の平均値', '色相の中央値',  '彩度の平均値', '彩度の中央値', '明度の平均値', '明度の中央値'])
-    
+        init_writer = csv.writer(new_csv_file, delimiter=',', quoting=csv.QUOTE_NONNUMERIC)
+        init_writer.writerow(['# 売上', 'メーカー', '発売日', 'タイトル', '色相の平均値', '色相の中央値',  '彩度の平均値', '彩度の中央値', '明度の平均値', '明度の中央値'])
+
     with open(CSV_FILE_NAME, mode='a', encoding='utf-8', newline='') as result_csv_file:
-      result_csv_writer = csv.writer(result_csv_file, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-      
-      # Batch mode
-      if input_file_name == "":
-        print("Enter batch mode:")
-        loop_index = 0
-        filter_pattern = re.compile(regex_file_name_pattern)
-        
-        for str_file_name in glob.iglob('input/**', recursive=True):
-          if filter_pattern.search(str_file_name) != None:
-            print(str_file_name)
-            AnalyzeImage(str_file_name, True, result_csv_writer)
-            
-            if is_memory_trace_mode == True:
-              memory_leak_checker.PrintCurrentMemoryStatus()
-            
-            # メモリ・リーク暫定対応
-            loop_index += 1
-            if (loop_index % BUFFER_POOL_SIZE) == 0:
-              gc.collect()                  # 効果が怪しいけど...
-              result_csv_file.flush()       # 応急退避
-              loop_index = 0
+      result_csv_writer = csv.writer(result_csv_file, delimiter=',', quoting=csv.QUOTE_NONNUMERIC)
+      with open(JSON_FILE_NAME, mode='a', encoding='utf-8', newline='') as result_json_file:
+        result_json_file.write('[')
+        # Batch mode
+        if input_file_name == "":
+          print("Enter batch mode:")
+          loop_index = 0
+          filter_pattern = re.compile(regex_file_name_pattern)
           
-        print("The process has been completed🎉")
-      # Single file process mode
-      else:
-        print("Enter single file process mode:")
-        AnalyzeImage(input_file_name, False, result_csv_writer)
-        if is_memory_trace_mode == True:
-              memory_leak_checker.PrintCurrentMemoryStatus()
-    
+          for str_file_name in glob.iglob('input/**', recursive=True):
+            if filter_pattern.search(str_file_name) != None:
+              print(str_file_name)
+              AnalyzeImage(str_file_name, True, result_csv_writer, result_json_file)
+              
+              if is_memory_trace_mode == True:
+                memory_leak_checker.PrintCurrentMemoryStatus()
+              
+              # メモリ・リーク暫定対応
+              loop_index += 1
+              if (loop_index % BUFFER_POOL_SIZE) == 0:
+                gc.collect()                  # 効果が怪しいけど...
+                result_csv_file.flush()       # 応急退避
+                loop_index = 0
+            
+          print("The process has been completed🎉")
+        # Single file process mode
+        else:
+          print("Enter single file process mode:")
+          AnalyzeImage(input_file_name, False, result_csv_writer, result_json_file)
+          if is_memory_trace_mode == True:
+                memory_leak_checker.PrintCurrentMemoryStatus()
+        result_json_file.write(']')
   except Exception as e:
     print("\nUnexpected error: " + str(e)) 
     sys.exit(ERROR_EXIT)
