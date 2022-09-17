@@ -135,6 +135,7 @@ dmypy.json
 *.jpeg
 *.jpg
 *.csv
+*.json
 
 # Other ignore file
 *.txt
